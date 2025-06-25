@@ -131,6 +131,7 @@ struct Settings
 	static inline bool bTargetLockUseRightThumbstick = true;
 	static inline bool bResetCameraWithTargetLock = true;
 	static inline bool bResetCameraPitch = false;
+	static inline bool bTargetLockOnIDRCTarget = true;
 
 	// HUD
 	static inline bool bEnableTargetLockReticle = true;
