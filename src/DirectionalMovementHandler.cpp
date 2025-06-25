@@ -2,6 +2,7 @@
 #include "Settings.h"
 #include "Events.h"
 #include "Offsets.h"
+#include "DragonCameraState.h"
 
 #include <Psapi.h>
 #include <DbgHelp.h>
@@ -247,10 +248,14 @@ void DirectionalMovementHandler::Update()
 			RE::TESObjectREFR* cameraTarget = nullptr;
 			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 			bool bIsMounted = thirdPersonState->id == RE::CameraState::kMount;
+			bool bIsMountedDragon = thirdPersonState->id == RE::CameraState::kDragon;
 
 			if (bIsMounted) {
 				auto horseCameraState = static_cast<RE::HorseCameraState*>(thirdPersonState);
 				cameraTarget = horseCameraState->horseRefHandle.get().get();
+			} else if (bIsMountedDragon) {
+				auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
+				cameraTarget = dragonCameraState->dragonRefHandle.get().get();
 			} else {
 				cameraTarget = RE::PlayerCharacter::GetSingleton();
 			}
@@ -763,19 +768,23 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 void DirectionalMovementHandler::UpdateCameraAutoRotation()
 {
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
-	if (playerCamera && playerCamera->currentState && (playerCamera->currentState->id == RE::CameraState::kThirdPerson || playerCamera->currentState->id == RE::CameraState::kMount)) {
+	if (playerCamera && playerCamera->currentState && (playerCamera->currentState->id == RE::CameraState::kThirdPerson 
+		|| playerCamera->currentState->id == RE::CameraState::kMount || playerCamera->currentState->id == RE::CameraState::kDragon)) {
 		RE::Actor* cameraTarget = nullptr;
 		auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 		bool bIsMounted = thirdPersonState->id == RE::CameraState::kMount;
-
+		bool bIsMountedDragon = thirdPersonState->id == RE::CameraState::kDragon;
 		if (bIsMounted) {
 			auto horseCameraState = static_cast<RE::HorseCameraState*>(thirdPersonState);
 			cameraTarget = horseCameraState->horseRefHandle.get()->As<RE::Actor>();
+		} else if (bIsMountedDragon) {
+			auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
+			cameraTarget = dragonCameraState->dragonRefHandle.get()->As<RE::Actor>();
 		} else {
 			cameraTarget = RE::PlayerCharacter::GetSingleton();
 		}
 		
-		if (!GetFreeCameraEnabled() || (!IsFreeCamera() && !bIsMounted) || _bShouldFaceCrosshair || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
+		if (!GetFreeCameraEnabled() || (!IsFreeCamera() && !bIsMounted && !bIsMountedDragon) || _bShouldFaceCrosshair || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
 			_currentAutoCameraRotationSpeed = 0.f;
 			return;
 		}
@@ -1361,7 +1370,9 @@ bool DirectionalMovementHandler::IsTDMRotationLocked() const
 void DirectionalMovementHandler::ResetCamera()
 {
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
-	if (playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kThirdPerson || playerCamera->currentState->id == RE::CameraState::kMount) {
+	if (playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kThirdPerson 
+		|| playerCamera->currentState->id == RE::CameraState::kMount
+		|| playerCamera->currentState->id == RE::CameraState::kDragon) {
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 		_desiredCameraAngleX = playerCharacter->data.angle.z;
@@ -1422,20 +1433,25 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 		_lastLOSTimer = _lostSightAllowedDuration;
 
 		auto playerCamera = RE::PlayerCamera::GetSingleton();
-		// If on a mount, set player and horse pitch to avoid camera snap
-		if (playerCharacter->IsOnMount() && playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kMount) {
-			auto horseCameraState = static_cast<RE::HorseCameraState*>(playerCamera->currentState.get());
-			playerCharacter->data.angle.x = -horseCameraState->freeRotation.y;
-			//horseCameraState->freeRotation.y = 0;
+		if (playerCharacter->IsOnMount() && playerCamera->currentState) {
+			if (playerCamera->currentState->id == RE::CameraState::kMount) {
+				// If on a horse, set player and horse pitch to avoid camera snap
+				auto horseCameraState = static_cast<RE::HorseCameraState*>(playerCamera->currentState.get());
+				playerCharacter->data.angle.x = -horseCameraState->freeRotation.y;
+				//horseCameraState->freeRotation.y = 0;
 
-			if (auto horseRefPtr = horseCameraState->horseRefHandle.get()) {
-				auto horse = horseRefPtr->As<RE::Actor>();
-				if (horse) {
-					horse->data.angle.x = -horseCameraState->freeRotation.y;
+				if (auto horseRefPtr = horseCameraState->horseRefHandle.get()) {
+					auto horse = horseRefPtr->As<RE::Actor>();
+					if (horse) {
+						horse->data.angle.x = -horseCameraState->freeRotation.y;
+					}
 				}
+			} else if (playerCamera->currentState->id == RE::CameraState::kDragon) {
+				// If on a dragon, only set player pitch to avoid camera snap
+				auto dragonCameraState = static_cast<RE::DragonCameraState*>(playerCamera->currentState.get());
+				playerCharacter->data.angle.x = -dragonCameraState->freeRotation.y;
 			}
 		}
-
 		return true;
 	}
 
@@ -2204,7 +2220,9 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	float cameraPitchOffset = 0.f;
 	float cameraYawOffset = 0.f;
 
-	if (playerCamera->currentState->id == RE::CameraState::kThirdPerson || playerCamera->currentState->id == RE::CameraState::kMount)
+	if (playerCamera->currentState->id == RE::CameraState::kThirdPerson 
+		|| playerCamera->currentState->id == RE::CameraState::kMount
+		|| playerCamera->currentState->id == RE::CameraState::kDragon)
 	{
 		auto currentState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 
@@ -2390,7 +2408,9 @@ RE::NiPoint3 DirectionalMovementHandler::GetCameraRotation()
 		ret.x = player->data.angle.x - angle.x;
 		ret.y = angle.y;
 		ret.z = player->data.angle.z; //NormalAbsoluteAngle(-angle.z);
-	} else if (playerCamera->currentState->id == RE::CameraStates::kThirdPerson || playerCamera->currentState->id == RE::CameraStates::kMount) {
+	} else if (playerCamera->currentState->id == RE::CameraStates::kThirdPerson 
+				|| playerCamera->currentState->id == RE::CameraStates::kMount
+				|| playerCamera->currentState->id == RE::CameraStates::kDragon) {
 		const auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 		ret.x = player->data.angle.x + thirdPersonState->freeRotation.y;
 		ret.y = 0.f;
@@ -2420,8 +2440,9 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	RE::ThirdPersonState* thirdPersonState = nullptr;
 
 	bool bIsHorseCamera = playerCamera->currentState->id == RE::CameraState::kMount;
+	bool bIsDragonCamera = playerCamera->currentState->id == RE::CameraState::kDragon;
 
-	if (playerCamera && playerCamera->currentState && (playerCamera->currentState->id == RE::CameraState::kThirdPerson || bIsHorseCamera)) {
+	if (playerCamera && playerCamera->currentState && (playerCamera->currentState->id == RE::CameraState::kThirdPerson || bIsHorseCamera || bIsDragonCamera)) {
 		thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 	}
 
@@ -2434,7 +2455,24 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		return;
 	}
 
-	float currentCharacterYaw = playerCharacter->data.angle.z;
+	// In case player is mounted on a dragon, need to use dragon as reference for the currentCharacterYaw:
+	// Reason: the player sits on the dragon's neck, which keeps moving as the dragon changes the look direction.
+	// So the player's yaw changes along with the dragon's look direction, derailing the camera target position.
+	// Using the dragon's yaw instead solves this.
+	RE::Actor* yawActor = static_cast<RE::Actor*>(playerCharacter);
+	if (APIs::IDRC && APIs::IDRC->GetDragon()) {
+		RE::ActorPtr mount;
+		auto bgetMount = playerCharacter->GetMount(mount);
+
+		if (!bgetMount || !mount) {
+			logger::warn("LookAtTarget - Failed to get IDRC dragon for yaw");
+		} else
+		{
+			yawActor = mount.get();
+		}
+	}
+
+	float currentCharacterYaw = yawActor->data.angle.z;
 	float currentCharacterPitch = playerCharacter->data.angle.x;
 	float currentCameraYawOffset = NormalAbsoluteAngle(thirdPersonState->freeRotation.x);
 
@@ -2445,7 +2483,9 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	float distanceToTarget = playerPos.GetDistance(targetPos);
 	float zOffset = distanceToTarget * Settings::fTargetLockPitchOffsetStrength;
 
-	if (bIsHorseCamera) {
+	float playerToCameraDist = cameraPos.GetDistance(playerPos);
+
+	if (bIsHorseCamera || bIsDragonCamera) {
 		zOffset *= -1.f;
 	}
 
@@ -2472,13 +2512,15 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	RE::NiPoint2 projectedDirectionToTargetXY(-projectedDirectionToTarget.x, projectedDirectionToTarget.y);
 
-	bool bIsBehind = projectedDirectionToTargetXY.Dot(currentCameraDirection) < 0;
+	// Need to add distance check to avoid camera rotation towards a position between player and target (if camera is closer than target)
+	bool bIsBehind = (projectedDirectionToTargetXY.Dot(currentCameraDirection) < 0) && (playerToCameraDist > distanceToTarget);
 
 	auto reversedCameraDirection = currentCameraDirection * -1.f;
 	float angleDelta = bIsBehind ? GetAngle(reversedCameraDirection, projectedDirectionToTargetXY) : GetAngle(currentCameraDirection, projectedDirectionToTargetXY);
 	angleDelta = NormalRelativeAngle(angleDelta);
 
-	const float realTimeDeltaTime = GetRealTimeDeltaTime();
+	// Clamp realTimeDeltaTime to max 50ms/frame. Prevents too fast camera rotation when the game is running at low FPS.
+	const float realTimeDeltaTime = GetRealTimeDeltaTime() < 0.05f ? GetRealTimeDeltaTime() : 0.05f;
 
 	float desiredFreeCameraRotation = currentCameraYawOffset + angleDelta;
 	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed);
@@ -2498,6 +2540,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	playerCharacter->data.angle.x = _desiredPlayerPitch;															// player pitch
 	
 	if (bIsHorseCamera) {
+		// update pitch only when riding a horse, not a dragon
 		auto horseCameraState = static_cast<RE::HorseCameraState*>(thirdPersonState);
 		if (auto horseRefPtr = horseCameraState->horseRefHandle.get()) {
 			auto horse = horseRefPtr->As<RE::Actor>();
@@ -2509,7 +2552,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	float cameraPitchOffset = _desiredPlayerPitch - currentCharacterPitch;
 
-	if (!bIsHorseCamera) {
+	if (!bIsHorseCamera && !bIsDragonCamera) {
 		thirdPersonState->freeRotation.y += cameraPitchOffset;
 		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
 	} else {

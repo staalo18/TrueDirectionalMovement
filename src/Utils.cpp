@@ -34,7 +34,8 @@ RE::NiPoint3 GetCameraPos()
 
 	if (playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kFirstPerson] || 
 		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kThirdPerson] ||
-		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount]) {
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount] ||
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kDragon]) {
 		RE::NiNode* root = playerCamera->cameraRoot.get();
 		if (root) {
 			ret.x = root->world.translate.x;
