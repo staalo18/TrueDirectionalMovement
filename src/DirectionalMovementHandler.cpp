@@ -2481,15 +2481,14 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	// So the player's yaw changes along with the dragon's look direction, derailing the camera target position.
 	// Using the dragon's yaw instead solves this.
 	RE::Actor* yawActor = static_cast<RE::Actor*>(playerCharacter);
-	if (APIs::IDRC && APIs::IDRC->GetDragon()) {
-		RE::ActorPtr mount;
-		auto bgetMount = playerCharacter->GetMount(mount);
-
-		if (!bgetMount || !mount) {
-			logger::warn("LookAtTarget - Failed to get IDRC dragon for yaw");
+	if (bIsDragonCamera) {
+		auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
+		if (auto dragonRefPtr = dragonCameraState->dragonRefHandle.get())
+		{
+			yawActor = dragonRefPtr->As<RE::Actor>();
 		} else
 		{
-			yawActor = mount.get();
+			logger::warn("LookAtTarget - Failed to get dragon for yaw");
 		}
 	}
 
