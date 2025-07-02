@@ -2505,10 +2505,6 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	float playerToCameraDist = cameraPos.GetDistance(playerPos);
 
-	if (bIsHorseCamera || bIsDragonCamera) {
-		zOffset *= -1.f;
-	}
-
 	RE::NiPoint3 offsetTargetPos = targetPos;
 	offsetTargetPos.z -= zOffset;
 	//offsetTargetPos = midPoint;
@@ -2555,7 +2551,13 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	RE::NiPoint3 cameraAngle = ToOrientationRotation(cameraDirectionToTarget);
 	_desiredPlayerPitch = -playerAngle.x;
 	cameraAngle.x *= ((PI - fabs(cameraAngle.x)) / PI);
-	float desiredCameraAngle = _desiredPlayerPitch + cameraAngle.x;
+
+	float referencePitch = _desiredPlayerPitch;
+	if (bIsHorseCamera || bIsDragonCamera) {
+		// for horse and dragon cameras, the reference pitch is always 0
+		referencePitch = 0.f;
+	}		
+	float desiredCameraAngle = referencePitch + cameraAngle.x;
 
 	playerCharacter->data.angle.x = _desiredPlayerPitch;															// player pitch
 	
@@ -2574,10 +2576,8 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	if (!bIsHorseCamera && !bIsDragonCamera) {
 		thirdPersonState->freeRotation.y += cameraPitchOffset;
-		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
-	} else {
-		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, -desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
 	}
+	thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
 }
 
 void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor)
