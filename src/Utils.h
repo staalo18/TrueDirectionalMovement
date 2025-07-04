@@ -26,6 +26,7 @@ bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_tar
 
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
+float GetLandHeightWithWater(RE::NiPoint3 a_pos);
 
 [[nodiscard]] inline float GetPlayerTimeMultiplier()
 {

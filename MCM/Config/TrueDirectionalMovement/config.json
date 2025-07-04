@@ -781,7 +781,19 @@
                     "sourceType": "ModSettingFloat"
                 }
             },
-
+            {
+                "id": "fTargetLockMinHeightAboveGround:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockMinHeightAboveGround_OptionText",
+                "type": "slider",
+                "help": "$TrueDirectionalMovement_TargetLockMinHeightAboveGround_InfoText",
+                "valueOptions": {
+                    "min": 0,
+                    "max": 200,
+                    "step": 5,
+                    "sourceType": "ModSettingFloat"
+                }
+            },  
+              
             {
                 "text": "$TrueDirectionalMovement_ProjectileSettings_HeaderText",
                 "type": "header"

@@ -192,6 +192,7 @@ public:
 	RE::NiPoint3 GetCameraRotation();
 
 	void LookAtTarget(RE::ActorHandle a_target);
+	RE::NiPoint3 GetCameraAngle(RE::NiPoint3& a_playerPos,  RE::NiPoint3& a_cameraPos, RE::NiPoint3& a_cameraDirectionToTarget);
 
 	bool ShouldFaceTarget() const { return _bShouldFaceTarget; }
 	bool ShouldFaceCrosshair() const { return _bShouldFaceCrosshair; }

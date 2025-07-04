@@ -132,6 +132,8 @@ struct Settings
 	static inline bool bResetCameraWithTargetLock = true;
 	static inline bool bResetCameraPitch = false;
 	static inline bool bTargetLockOnIDRCTarget = true;
+	static inline bool bTargetLockConsiderGroundLevel = true;
+	static inline float fTargetLockMinHeightAboveGround = 35.f;
 
 	// HUD
 	static inline bool bEnableTargetLockReticle = true;

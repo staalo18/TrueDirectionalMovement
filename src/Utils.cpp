@@ -235,3 +235,28 @@ bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPos
 
 	return bValidSolutionFound;
 }
+
+float GetLandHeightWithWater(RE::NiPoint3 a_pos)
+{
+	/* Extension of function GetLandHeight() from PO3_SKSEFunctions*/
+	float heightOut = -1;
+
+	if (auto TES = RE::TES::GetSingleton()) {
+		TES->GetLandHeight(a_pos, heightOut);
+
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+		auto cell = playerCharacter->GetParentCell();
+		auto waterHeight = !cell || cell == playerCharacter->parentCell ? playerCharacter->GetWaterHeight() : cell->GetExteriorWaterHeight();
+
+		if (waterHeight == -FLT_MAX && cell) {
+			waterHeight = cell->GetExteriorWaterHeight();
+		}
+
+		if (heightOut < waterHeight) {
+			heightOut = waterHeight;
+		}
+	}
+
+	return heightOut;
+}

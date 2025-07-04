@@ -2505,6 +2505,12 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	float playerToCameraDist = cameraPos.GetDistance(playerPos);
 
+	if (bIsDragonCamera)
+	{
+		// scale the offset, to compensate for the larger camera-player distance in the dragon camera state
+		zOffset /= 0.5f * (3.0f + 2.0f * thirdPersonState->targetZoomOffset);
+	}
+
 	RE::NiPoint3 offsetTargetPos = targetPos;
 	offsetTargetPos.z -= zOffset;
 	//offsetTargetPos = midPoint;
@@ -2548,9 +2554,8 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	// pitch
 	RE::NiPoint3 playerAngle = ToOrientationRotation(playerDirectionToTarget);
-	RE::NiPoint3 cameraAngle = ToOrientationRotation(cameraDirectionToTarget);
+	RE::NiPoint3 cameraAngle = GetCameraAngle(playerPos, cameraPos, cameraDirectionToTarget);
 	_desiredPlayerPitch = -playerAngle.x;
-	cameraAngle.x *= ((PI - fabs(cameraAngle.x)) / PI);
 
 	float referencePitch = _desiredPlayerPitch;
 	if (bIsHorseCamera || bIsDragonCamera) {
@@ -2578,6 +2583,31 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		thirdPersonState->freeRotation.y += cameraPitchOffset;
 	}
 	thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
+}
+
+RE::NiPoint3 DirectionalMovementHandler::GetCameraAngle(RE::NiPoint3& a_playerPos, RE::NiPoint3& a_cameraPos, RE::NiPoint3& a_cameraDirectionToTarget) 
+{
+	RE::NiPoint3 cameraAngle =  ToOrientationRotation(a_cameraDirectionToTarget);
+
+	// determine vertical projection of the camera position to the minimal height above ground
+	RE::NiPoint3 offsetGroundPos = a_cameraPos;
+	offsetGroundPos.z =  GetLandHeightWithWater(a_cameraPos) + Settings::fTargetLockMinHeightAboveGround;
+	RE::NiPoint3 offsetGroundPosToPlayer = RE::NiPoint3(a_playerPos.x - offsetGroundPos.x, a_playerPos.y - offsetGroundPos.y, a_playerPos.z - offsetGroundPos.z);
+	RE::NiPoint3 offsetGroundPosToPlayerDirection = offsetGroundPosToPlayer;
+	offsetGroundPosToPlayerDirection.Unitize();
+
+	// get the angle from the offsetGroundPos to the player
+	RE::NiPoint3 offsetGroundPosAngle =  ToOrientationRotation(offsetGroundPosToPlayerDirection);
+
+	// now, we can use the offsetGroundPosAngle to adjust the camera pitch if needed
+	if (offsetGroundPosAngle.x < cameraAngle.x) {
+		// don't go below the angle of the final camera <-> target direction
+		cameraAngle.x = offsetGroundPosAngle.x;
+	}
+
+	cameraAngle.x *= ((PI - fabs(cameraAngle.x)) / PI);
+
+	return cameraAngle;
 }
 
 void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor)
