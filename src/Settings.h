@@ -134,6 +134,9 @@ struct Settings
 	static inline bool bTargetLockOnIDRCTarget = true;
 	static inline bool bTargetLockConsiderGroundLevel = true;
 	static inline float fTargetLockMinHeightAboveGround = 35.f;
+	static inline bool bTargetLockEnableLockBehindTarget = false;
+	static inline float fCameraBehindTargetMinDistance = 50.f;
+	static inline float fCameraBehindTargetNoSwitchRange = 150.f;
 
 	// HUD
 	static inline bool bEnableTargetLockReticle = true;
@@ -158,6 +161,7 @@ struct Settings
 	static inline uint32_t uTargetLockKey = 258;
 	static inline uint32_t uSwitchTargetLeftKey = static_cast<uint32_t>(-1);
 	static inline uint32_t uSwitchTargetRightKey = static_cast<uint32_t>(-1);
+	static inline uint32_t uTargetLockBehindTargetKey = static_cast<uint32_t>(-1);
 
 	// Non-MCM
 	static inline std::unordered_map<RE::BGSBodyPartData*, std::vector<std::string>> targetPoints;

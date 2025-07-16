@@ -191,8 +191,13 @@ public:
 
 	RE::NiPoint3 GetCameraRotation();
 
+	void EnableLockBehindTarget(bool a_enable);
+	void ToggleLockBehindTarget();
+	float GetNominalCameraToPlayerDistance() const;
+	RE::NiPoint3 GetNominalCameraPosition(const RE::NiPoint3& a_playerPos, const RE::NiPoint3& a_cameraPos) const;
+	void UpdateMoveCameraBehindTarget(const float a_distanceToTarget);
 	void LookAtTarget(RE::ActorHandle a_target);
-	RE::NiPoint3 GetCameraAngle(RE::NiPoint3& a_playerPos,  RE::NiPoint3& a_cameraPos, RE::NiPoint3& a_cameraDirectionToTarget);
+	RE::NiPoint3 GetCameraAngle(RE::NiPoint3& a_playerPos,  RE::NiPoint3& a_cameraPos, RE::NiPoint3& a_cameraDirection);
 
 	bool ShouldFaceTarget() const { return _bShouldFaceTarget; }
 	bool ShouldFaceCrosshair() const { return _bShouldFaceCrosshair; }
@@ -267,6 +272,9 @@ private:
 
 	bool _bUpdatePlayerPitch = false;
 	float _desiredPlayerPitch;
+
+	bool _enableLockBehindTarget = false;
+	bool _moveCameraBehindTarget = false; // tracks if targeted camera position is behind the target
 
 	bool _bResetCamera = false;
 	float _desiredCameraAngleX;

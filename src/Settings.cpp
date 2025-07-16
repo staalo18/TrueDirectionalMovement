@@ -162,6 +162,7 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockUseRightThumbstick", bTargetLockUseRightThumbstick);
 		ReadBoolSetting(mcm, "TargetLock", "bResetCameraWithTargetLock", bResetCameraWithTargetLock);
 		ReadBoolSetting(mcm, "TargetLock", "bResetCameraPitch", bResetCameraPitch);
+		ReadBoolSetting(mcm, "TargetLock", "bTargetLockEnableLockBehindTarget", bTargetLockEnableLockBehindTarget);
 
 		// HUD
 		ReadBoolSetting(mcm, "HUD", "bEnableTargetLockReticle", bEnableTargetLockReticle);
@@ -186,6 +187,7 @@ void Settings::ReadSettings()
 		ReadUInt32Setting(mcm, "Keys", "uTargetLockKey", uTargetLockKey);
 		ReadUInt32Setting(mcm, "Keys", "uSwitchTargetLeftKey", uSwitchTargetLeftKey);
 		ReadUInt32Setting(mcm, "Keys", "uSwitchTargetRightKey", uSwitchTargetRightKey);
+		ReadUInt32Setting(mcm, "Keys", "uTargetLockBehindTargetKey", uTargetLockBehindTargetKey);
 	};
 
 	logger::info("Reading MCM .ini...");

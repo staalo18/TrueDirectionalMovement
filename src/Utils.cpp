@@ -260,3 +260,27 @@ float GetLandHeightWithWater(RE::NiPoint3 a_pos)
 
 	return heightOut;
 }
+	
+RE::TESCondition* condition_GetFlyingState;
+int GetFlyingState(RE::Actor* a_akActor) {
+	if (!a_akActor) {
+		logger::warn("{}: error, a_akActor doesn't exist", __func__);
+		return -1;
+	}
+
+	if (!condition_GetFlyingState) {
+		auto* conditionItem = new RE::TESConditionItem;
+		conditionItem->data.functionData.function = RE::FUNCTION_DATA::FunctionID::kGetFlyingState;
+
+		condition_GetFlyingState = new RE::TESCondition;
+		condition_GetFlyingState->head = conditionItem;
+	}
+
+	for (int i = 0; i < 6; i++) {
+		condition_GetFlyingState->head->data.comparisonValue.f = static_cast<float>(i);
+		if (condition_GetFlyingState->IsTrue(a_akActor, nullptr)) {
+			return i;
+		}
+	}
+	return -1;
+}

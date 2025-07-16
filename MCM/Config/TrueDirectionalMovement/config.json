@@ -737,6 +737,15 @@
                     "sourceType": "ModSettingFloat"
                 }
             },
+            {
+                "id": "bTargetLockEnableLockBehindTarget:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockEnableLockBehindTarget_OptionText",
+                "type": "toggle",
+                "help": "$TrueDirectionalMovement_TargetLockEnableLockBehindTarget_InfoText",
+                "valueOptions": {
+                    "sourceType": "ModSettingBool"
+                }
+            },
 
             {
                 "text": "$TrueDirectionalMovement_CameraSettings_HeaderText",
@@ -957,6 +966,16 @@
                 "text": "$TrueDirectionalMovement_SwitchTargetRightKey_OptionText",
                 "type": "keymap",
                 "help": "$TrueDirectionalMovement_SwitchTargetRightKey_InfoText",
+                "ignoreConflicts": false,
+                "valueOptions": {
+                  "sourceType": "ModSettingInt"
+                }
+            },
+            {
+                "id": "uTargetLockBehindTargetKey:Keys",
+                "text": "$TrueDirectionalMovement_TargetLockBehindTargetKey_OptionText",
+                "type": "keymap",
+                "help": "$TrueDirectionalMovement_TargetLockBehindTargetKey_InfoText",
                 "ignoreConflicts": false,
                 "valueOptions": {
                   "sourceType": "ModSettingInt"
