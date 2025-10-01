@@ -16,7 +16,7 @@ Enable TargetLock when mounted on a dragon:
   * modified handling of camera snap in ToggleTargetLock() and LookAtTarget() such that DragonCameraState->dragonRefHandle.get()->As<RE::Actor>()->data.angle.x is not modified.
   ( otherwise if target lock is on, the dragon's orientation flickers between two positions while the dragon is switching flying states (flying->hover, or hover->land)
   * In ToggleTargetLock(), when toggling the TargetLock on, the target lock is set to the dragon's current combat target instead of using the actor which is closest to the center of the screen
-  (only in case IDRC is active and the dragon is mounted and in combat). This functionality uses IDRC's API function APIs::IDRC->GetCurrentTarget().
+  (only in case IDRC is active and the dragon is mounted and in combat). This functionality uses IDRC's API function APIs::IDRC->GetCurrentTarget(). It is used if APIs::IDRC->UseTarget() returns true.
   * In LookAtTarget(): 
     - use dragon instead of player as reference because player's yaw is changing with dragon's head orientation.
 
@@ -27,9 +27,6 @@ Enable TargetLock when mounted on a dragon:
 
   * IDRC API is added via API/IDRC_API.h, and connected in API/APIManager.cpp and API/APIManager.h 
       * IDRC API requires unreleased version of IDRC (https://github.com/staalo18/IntuitiveDragonRideControl)
-
-  * New TDM setting (in Settings.h) - not in MCM:
-      * bTargetLockOnIDRCTarget (true): Use IDRC's current target when activating the TargetLock, instead of the actor closest to the center of the screen center
 
 
 Changed handling of reference pitch for horseCameraState and dragonCameraState:

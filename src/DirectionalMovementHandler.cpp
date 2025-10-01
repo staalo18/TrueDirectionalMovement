@@ -1398,7 +1398,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 
 		RE::ActorHandle actor;
 
-		if (APIs::IDRC && Settings::bTargetLockOnIDRCTarget)
+		if (APIs::IDRC  && APIs::IDRC->UseTarget())
 		{
 			// in case the IDRC dragon has a current combat target, lock onto that target
 			actor = APIs::IDRC->GetCurrentTarget();
@@ -1612,15 +1612,6 @@ void DirectionalMovementHandler::UpdateTargetLock()
 		if (!CheckCurrentTarget(_target))
 		{
 			ToggleTargetLock(false);
-		}
-
-		if (APIs::IDRC && APIs::IDRC->GetCurrentTarget() && APIs::IDRC->GetCurrentTarget() != _target 
-			&& Settings::bTargetLockOnIDRCTarget)
-		{
-			// IDRC dragon has switched combat target, update target lock
-			// TODO: Decide what to do in this case
-//			logger::info("IDRC dragon has switched combat target, updating target lock");
-//			ToggleTargetLock(true);
 		}
 	}
 }
