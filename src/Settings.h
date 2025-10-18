@@ -131,7 +131,6 @@ struct Settings
 	static inline bool bTargetLockUseRightThumbstick = true;
 	static inline bool bResetCameraWithTargetLock = true;
 	static inline bool bResetCameraPitch = false;
-	static inline bool bTargetLockOnIDRCTarget = true;
 	static inline bool bTargetLockConsiderGroundLevel = true;
 	static inline float fTargetLockMinHeightAboveGround = 35.f;
 	static inline bool bTargetLockEnableLockBehindTarget = false;

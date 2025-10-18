@@ -31,6 +31,15 @@ bool Messaging::TDMInterface::GetTargetLockState() const noexcept
 	return false;
 }
 
+bool Messaging::TDMInterface::IsTargetLockBehindTarget() const noexcept
+{
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		return directionalMovementHandler->IsTargetLockBehindTarget();
+	}
+	return false;
+}
+
 RE::ActorHandle Messaging::TDMInterface::GetCurrentTarget() const noexcept
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();

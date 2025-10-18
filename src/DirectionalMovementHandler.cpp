@@ -1386,7 +1386,7 @@ void DirectionalMovementHandler::ResetCamera()
 
 bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedManually /*= false */)
 {
-	EnableLockBehindTarget(Settings::bTargetLockEnableLockBehindTarget);
+	EnableLockBehindTarget(false); // initially disable lock behind target when toggling target lock
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (bEnable)
@@ -2438,6 +2438,8 @@ RE::NiPoint3 DirectionalMovementHandler::GetCameraRotation()
 
 void DirectionalMovementHandler::EnableLockBehindTarget(bool a_enable)
 {
+	_moveCameraBehindTarget_prev = false;
+	_isBehind_prev = false;
 	_enableLockBehindTarget = a_enable;
 }
 
@@ -2497,7 +2499,17 @@ RE::NiPoint3 DirectionalMovementHandler::GetNominalCameraPosition(const RE::NiPo
 
 void DirectionalMovementHandler::UpdateMoveCameraBehindTarget(const float a_distanceToTarget)
 {
+	RE::NiPoint3 playerPos;
+	if (!GetTorsoPos(RE::PlayerCharacter::GetSingleton(), playerPos)) {
+		return;
+	}
+
+	float cameraToPlayerDist = playerPos.GetDistance(GetCameraPos());
 	float nominalCameraToPlayerDist = GetNominalCameraToPlayerDistance();
+
+	if (cameraToPlayerDist > nominalCameraToPlayerDist) {
+		nominalCameraToPlayerDist = cameraToPlayerDist;
+	}
 
 	if (_enableLockBehindTarget)
 	{
@@ -2618,13 +2630,10 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	offsetTargetPos.z = _moveCameraBehindTarget ? offsetTargetPos.z + zOffset : offsetTargetPos.z - zOffset;
 	//offsetTargetPos = midPoint;
 
-	// nominal camera position is needed to keep the angleDelta computation insensitive to camera collisions with the environment
-	// (camera collision changes camera-player distance)
-	RE::NiPoint3 nominalCameraPos = GetNominalCameraPosition(playerPos, cameraPos);
 	RE::NiPoint3 playerToTarget = RE::NiPoint3(targetPos.x - playerPos.x, targetPos.y - playerPos.y, targetPos.z - playerPos.z);
 	RE::NiPoint3 playerDirectionToTarget = playerToTarget;
 	playerDirectionToTarget.Unitize();
-	RE::NiPoint3 cameraToTarget = RE::NiPoint3(offsetTargetPos.x - nominalCameraPos.x, offsetTargetPos.y - nominalCameraPos.y, offsetTargetPos.z - nominalCameraPos.z);
+	RE::NiPoint3 cameraToTarget = RE::NiPoint3(offsetTargetPos.x - cameraPos.x, offsetTargetPos.y - cameraPos.y, offsetTargetPos.z - cameraPos.z);
 	RE::NiPoint3 cameraDirectionToTarget = cameraToTarget;
 	cameraDirectionToTarget.Unitize();
 	RE::NiPoint3 cameraToPlayer = RE::NiPoint3(playerPos.x - cameraPos.x, playerPos.y - cameraPos.y, playerPos.z - cameraPos.z);
@@ -2635,7 +2644,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	RE::NiPoint3 from = _moveCameraBehindTarget ? playerToTarget : cameraToPlayer;
 	RE::NiPoint3 onto = _moveCameraBehindTarget ? cameraToPlayer : cameraToTarget;
 	RE::NiPoint3 projected = Project(from, onto);
-	RE::NiPoint3 projectedPos = _moveCameraBehindTarget ? projected + playerPos : projected + nominalCameraPos;
+	RE::NiPoint3 projectedPos = _moveCameraBehindTarget ? projected + playerPos : projected + cameraPos;
 	RE::NiPoint3 referencePos = _moveCameraBehindTarget ? playerPos : targetPos;
 	RE::NiPoint3 projectedDirection = referencePos - projectedPos;
 	projectedDirection.Unitize();
@@ -2644,17 +2653,24 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	// yaw
 
 	RE::NiPoint2 forwardVector(0.f, 1.f);
-	// If the camera should move behind the player, bIsBehind is computed relative to the camera-target line
+	// If the camera should move behind the player, _isBehind is computed relative to the camera-target line
 	RE::NiPoint2 isBehindDirection = Vec2Rotate(forwardVector, currentCharacterYaw + currentCameraYawOffset);
 	if (_moveCameraBehindTarget) {
-		// If the camera should move behind the target, bIsBehind is computed relative to the camera-player line
+		// If the camera should move behind the target, _isBehind is computed relative to the camera-player line
 		isBehindDirection.x = -cameraToPlayer.x;
 		isBehindDirection.y = cameraToPlayer.y;
 		isBehindDirection.Unitize();
 	}
 
-	// Need to add distance check to avoid camera rotation towards a position between player and target (if camera is closer than target)
-	bool bIsBehind = (projectedDirectionXY.Dot(isBehindDirection) < 0) && (playerPos.GetDistance(nominalCameraPos) > distanceToTarget);
+	_isBehind = (projectedDirectionXY.Dot(isBehindDirection) < 0);
+	if (Settings::bTargetLockEnableLockBehindTarget && _isBehind && !_isBehind_prev && _moveCameraBehindTarget == _moveCameraBehindTarget_prev)
+	{
+		// keep camera movement stable during camera collisions with the environment
+		_isBehind = false;
+	}
+
+	_moveCameraBehindTarget_prev = _moveCameraBehindTarget;
+	_isBehind_prev = _isBehind;
 
 	// If the camera should move behind the player, use the camera-target line as 2nd reference for deltaAngle
 	RE::NiPoint2 currentCameraDirection = isBehindDirection; 
@@ -2666,7 +2682,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		currentCameraDirection.Unitize();
 	}
 	auto reversedCameraDirection = currentCameraDirection * -1.f;
-	float angleDelta = bIsBehind ? GetAngle(reversedCameraDirection, projectedDirectionXY) : GetAngle(currentCameraDirection, projectedDirectionXY);
+	float angleDelta = _isBehind ? GetAngle(reversedCameraDirection, projectedDirectionXY) : GetAngle(currentCameraDirection, projectedDirectionXY);
 	if (_moveCameraBehindTarget) {
 		// opposite angleDelta sign when the camera should move behind the target
 		angleDelta = -1.f * Clamp(angleDelta, -0.5f * PI, 0.5f * PI);
@@ -2679,7 +2695,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	float desiredFreeCameraRotation = currentCameraYawOffset + angleDelta;
 	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed);
 
-	if (bIsBehind)
+	if (_isBehind)
 	{
 		return; // don't adjust pitch
 	}

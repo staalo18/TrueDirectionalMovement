@@ -9,8 +9,9 @@ namespace Messaging
 	using InterfaceVersion1 = ::TDM_API::IVTDM1;
 	using InterfaceVersion2 = ::TDM_API::IVTDM2;
 	using InterfaceVersion3 = ::TDM_API::IVTDM3;
+	using InterfaceVersion4 = ::TDM_API::IVTDM4;
 
-	class TDMInterface : public InterfaceVersion3
+	class TDMInterface : public InterfaceVersion4
 	{
 	private:
 		TDMInterface() noexcept;
@@ -43,6 +44,9 @@ namespace Messaging
 		// InterfaceVersion3
 		virtual TDM_API::DirectionalMovementMode GetDirectionalMovementMode() const noexcept override;
 		virtual RE::NiPoint2 GetActualMovementInput() const noexcept override;
+
+		// InterfaceVersion4
+		virtual bool IsTargetLockBehindTarget() const noexcept override;
 
 		// Internal
 		// Mark directional movement control as required by True Directional Movement for API requests

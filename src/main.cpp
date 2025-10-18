@@ -145,6 +145,8 @@ extern "C" DLLEXPORT void* SKSEAPI RequestPluginAPI(const TDM_API::InterfaceVers
 	case TDM_API::InterfaceVersion::V2:
 		[[fallthrough]];
 	case TDM_API::InterfaceVersion::V3:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V4:
 		logger::info("TrueDirectionalMovement::RequestPluginAPI returned the API singleton");
 		return static_cast<void*>(api);
 	}
