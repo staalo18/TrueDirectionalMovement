@@ -191,7 +191,7 @@ public:
 
 	RE::NiPoint3 GetCameraRotation();
 
-	void EnableLockBehindTarget(bool a_enable);
+	void ResetLockBehindTarget();
 	void ToggleLockBehindTarget();
 	float GetNominalCameraToPlayerDistance() const;
 	RE::NiPoint3 GetNominalCameraPosition(const RE::NiPoint3& a_playerPos, const RE::NiPoint3& a_cameraPos) const;
@@ -280,6 +280,8 @@ private:
 	bool _moveCameraBehindTarget_prev = false; // tracks state from previous frame
 	bool _isBehind = false;
 	bool _isBehind_prev = false; // tracks state from previous frame
+	bool _isLockedCameraTransitioning = false;
+	bool _isLockedCameraTransitioning_prev = false;
 
 	bool _bResetCamera = false;
 	float _desiredCameraAngleX;

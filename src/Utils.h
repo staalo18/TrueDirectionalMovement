@@ -278,3 +278,9 @@ int GetFlyingState(RE::Actor* a_akActor);
 {
 	return (((a_oldValue - a_oldMin) * (a_newMax - a_newMin)) / (a_oldMax - a_oldMin)) + a_newMin;
 }
+
+[[nodiscard]] inline float GetYaw(const RE::NiQuaternion a_rotation)
+{
+	// will not produce reliable results near the gimbal lock (pitch approaching +/- PI/2, ie straight upwards or downwards pitch)
+	return std::atan2(2.0f * (a_rotation.w * a_rotation.z + a_rotation.x * a_rotation.y), 1.0f - 2.0f * (a_rotation.y * a_rotation.y + a_rotation.z * a_rotation.z));
+}

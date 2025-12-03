@@ -767,6 +767,11 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 
 void DirectionalMovementHandler::UpdateCameraAutoRotation()
 {
+		if (APIs::IDRC  && APIs::IDRC->GetDragon()) {
+			_currentAutoCameraRotationSpeed = 0.f;
+			return;
+		}
+
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
 	if (playerCamera && playerCamera->currentState && (playerCamera->currentState->id == RE::CameraState::kThirdPerson 
 		|| playerCamera->currentState->id == RE::CameraState::kMount || playerCamera->currentState->id == RE::CameraState::kDragon)) {
@@ -1386,7 +1391,7 @@ void DirectionalMovementHandler::ResetCamera()
 
 bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedManually /*= false */)
 {
-	EnableLockBehindTarget(false); // initially disable lock behind target when toggling target lock
+	ResetLockBehindTarget();
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (bEnable)
@@ -2436,18 +2441,27 @@ RE::NiPoint3 DirectionalMovementHandler::GetCameraRotation()
 	return ret;
 }
 
-void DirectionalMovementHandler::EnableLockBehindTarget(bool a_enable)
+void DirectionalMovementHandler::ResetLockBehindTarget()
 {
+	_moveCameraBehindTarget = false;
+	_isBehind = false;
 	_moveCameraBehindTarget_prev = false;
 	_isBehind_prev = false;
-	_enableLockBehindTarget = a_enable;
+	_enableLockBehindTarget = false;
+	_isLockedCameraTransitioning = false;
+	_isLockedCameraTransitioning_prev = false;
 }
 
 void DirectionalMovementHandler::ToggleLockBehindTarget()
 {
 	if (HasTargetLocked() && Settings::bTargetLockEnableLockBehindTarget)
 	{
+		if(_isLockedCameraTransitioning) {
+			return;
+		}
+
 		_enableLockBehindTarget = !_enableLockBehindTarget;
+		_isLockedCameraTransitioning = true;
 	}
 }
 
@@ -2488,12 +2502,16 @@ RE::NiPoint3 DirectionalMovementHandler::GetNominalCameraPosition(const RE::NiPo
 {
 	RE::NiPoint3 cameraDirectionToPlayer = RE::NiPoint3(a_playerPos.x - a_cameraPos.x, a_playerPos.y - a_cameraPos.y, a_playerPos.z - a_cameraPos.z);
 	cameraDirectionToPlayer.Unitize();
+	float nominalCameraToPlayerDist = GetNominalCameraToPlayerDistance();
 	// vector pointing from the nominal camera position to the player
-	RE::NiPoint3 nominalCameraToPlayer = cameraDirectionToPlayer * GetNominalCameraToPlayerDistance();
+	RE::NiPoint3 nominalCameraToPlayer = cameraDirectionToPlayer * nominalCameraToPlayerDist;
 
 	// nominal position for the camera, ignoring potential camera collision with environment (collision changes camera-player distance)
 	RE::NiPoint3 nominalCameraPos = a_playerPos - nominalCameraToPlayer;
-
+	if (nominalCameraToPlayerDist < 1.0f) {
+		// nominalCameraToPlayerDist is 0 when player is aiming with a bow - use actual distance as fallback
+		nominalCameraPos = a_cameraPos;
+	}
 	return nominalCameraPos;
 }
 
@@ -2504,10 +2522,14 @@ void DirectionalMovementHandler::UpdateMoveCameraBehindTarget(const float a_dist
 		return;
 	}
 
+	if(_isLockedCameraTransitioning) {
+		return;
+	}
+
 	float cameraToPlayerDist = playerPos.GetDistance(GetCameraPos());
 	float nominalCameraToPlayerDist = GetNominalCameraToPlayerDistance();
-
-	if (cameraToPlayerDist > nominalCameraToPlayerDist) {
+	if (nominalCameraToPlayerDist < 1.0f) {
+		// nominalCameraToPlayerDist is 0 when player is aiming with a bow - use actual distance as fallback
 		nominalCameraToPlayerDist = cameraToPlayerDist;
 	}
 
@@ -2529,6 +2551,9 @@ void DirectionalMovementHandler::UpdateMoveCameraBehindTarget(const float a_dist
 					if (dragonActor && GetFlyingState(dragonActor) != 0)
 					{
 						// disable lock behind target in case the dragon mount is not grounded
+						if (_moveCameraBehindTarget) {
+							_isLockedCameraTransitioning = true;
+						}
 						_moveCameraBehindTarget = false;
 						return;
 					} 
@@ -2542,13 +2567,18 @@ void DirectionalMovementHandler::UpdateMoveCameraBehindTarget(const float a_dist
 		{
 			// switch to behind-target position if player-camera distance is more than  fCameraBehindTargetMinDistance + fCameraBehindTargetNoSwitchRange larger than the player-target distance
 			_moveCameraBehindTarget = true;
+			_isLockedCameraTransitioning = true;
 		} else if (_moveCameraBehindTarget && nominalCameraToPlayerDist < a_distanceToTarget + fScale * Settings::fCameraBehindTargetMinDistance)
 		{
 			// switch to normal position if player-camera distance is less than fCameraBehindTargetMinDistance behind the target
 			_moveCameraBehindTarget = false;
+			_isLockedCameraTransitioning = true;
 		}
 	} else
 	{
+		if (_moveCameraBehindTarget) {
+			_isLockedCameraTransitioning = true;
+		}
 		_moveCameraBehindTarget = false;
 	}
 }
@@ -2615,16 +2645,18 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	UpdateMoveCameraBehindTarget(distanceToTarget);
 	
 	float zOffset = distanceToTarget * Settings::fTargetLockPitchOffsetStrength;
+
+	// scaling compensates for the larger camera-player distance in the dragon camera state
+	float fScale = bIsDragonCamera ? 0.5f * (3.0f + 2.0f * thirdPersonState->targetZoomOffset) : 1.f;
 	if (_moveCameraBehindTarget)
 	{
-		zOffset = cameraPos.GetDistance(targetPos) * Settings::fTargetLockPitchOffsetStrength;
+		float nominalCameraToPlayerDist = GetNominalCameraPosition(playerPos, cameraPos).GetDistance(playerPos);
+		// multiplier reduces offset as camera gets closer to target.
+		float offsetMultiplier = 1.f - (distanceToTarget + fScale * Settings::fCameraBehindTargetMinDistance) / nominalCameraToPlayerDist;
+		offsetMultiplier = Clamp(offsetMultiplier, 0.f, 1.f);
+		zOffset *= offsetMultiplier;
 	}
-
-	if (bIsDragonCamera)
-	{
-		// scale the offset, to compensate for the larger camera-player distance in the dragon camera state
-		zOffset /= 0.5f * (3.0f + 2.0f * thirdPersonState->targetZoomOffset);
-	}
+	zOffset /= fScale;
 
 	RE::NiPoint3 offsetTargetPos = targetPos;
 	offsetTargetPos.z = _moveCameraBehindTarget ? offsetTargetPos.z + zOffset : offsetTargetPos.z - zOffset;
@@ -2663,7 +2695,15 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	}
 
 	_isBehind = (projectedDirectionXY.Dot(isBehindDirection) < 0);
-	if (Settings::bTargetLockEnableLockBehindTarget && _isBehind && !_isBehind_prev && _moveCameraBehindTarget == _moveCameraBehindTarget_prev)
+
+	if (_isLockedCameraTransitioning && !_isLockedCameraTransitioning_prev)
+	{
+		_isBehind_prev = _isBehind;
+		_moveCameraBehindTarget_prev = _moveCameraBehindTarget;
+	}
+	_isLockedCameraTransitioning_prev = _isLockedCameraTransitioning;
+
+	if (Settings::bTargetLockEnableLockBehindTarget && _isLockedCameraTransitioning && !_isBehind_prev && _moveCameraBehindTarget == _moveCameraBehindTarget_prev)
 	{
 		// keep camera movement stable during camera collisions with the environment
 		_isBehind = false;
@@ -2682,10 +2722,13 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		currentCameraDirection.Unitize();
 	}
 	auto reversedCameraDirection = currentCameraDirection * -1.f;
-	float angleDelta = _isBehind ? GetAngle(reversedCameraDirection, projectedDirectionXY) : GetAngle(currentCameraDirection, projectedDirectionXY);
+	float behindAngle = _isLockedCameraTransitioning ? -PI2 : GetAngle(reversedCameraDirection, projectedDirectionXY); // always transition counterclockwise
+	float angleDelta = _isBehind ? behindAngle : GetAngle(currentCameraDirection, projectedDirectionXY);
 	if (_moveCameraBehindTarget) {
-		// opposite angleDelta sign when the camera should move behind the target
-		angleDelta = -1.f * Clamp(angleDelta, -0.5f * PI, 0.5f * PI);
+		float cameraDirectionYaw = std::atan2(currentCameraDirection.x, currentCameraDirection.y);
+		RE::NiQuaternion cameraRotation;
+		thirdPersonState->GetRotation(cameraRotation);
+		angleDelta = GetYaw(cameraRotation) - cameraDirectionYaw;
 	}
 	angleDelta = NormalRelativeAngle(angleDelta);
 
@@ -2693,6 +2736,11 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	const float realTimeDeltaTime = GetRealTimeDeltaTime() < 0.05f ? GetRealTimeDeltaTime() : 0.05f;
 
 	float desiredFreeCameraRotation = currentCameraYawOffset + angleDelta;
+	if (_isLockedCameraTransitioning && !_isBehind && fabs(angleDelta) < PI/180.f) {
+		_isLockedCameraTransitioning = false;
+		_isLockedCameraTransitioning_prev = false;
+	}
+
 	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed);
 
 	if (_isBehind)
@@ -2746,20 +2794,22 @@ RE::NiPoint3 DirectionalMovementHandler::GetCameraAngle(RE::NiPoint3& a_playerPo
 {
 	RE::NiPoint3 cameraAngle =  ToOrientationRotation(a_cameraDirection);
 
-	// determine vertical projection of the camera position to the minimal height above ground
-	RE::NiPoint3 offsetGroundPos = a_cameraPos;
-	offsetGroundPos.z =  GetLandHeightWithWater(a_cameraPos) + Settings::fTargetLockMinHeightAboveGround;
-	RE::NiPoint3 offsetGroundPosToPlayer = RE::NiPoint3(a_playerPos.x - offsetGroundPos.x, a_playerPos.y - offsetGroundPos.y, a_playerPos.z - offsetGroundPos.z);
-	RE::NiPoint3 offsetGroundPosToPlayerDirection = offsetGroundPosToPlayer;
-	offsetGroundPosToPlayerDirection.Unitize();
+	if (!RE::PlayerCharacter::GetSingleton()->GetParentCell()->IsInteriorCell()) {
+		// determine vertical projection of the camera position to the minimal height above ground
+		RE::NiPoint3 offsetGroundPos = a_cameraPos;
+		offsetGroundPos.z =  GetLandHeightWithWater(a_cameraPos) + Settings::fTargetLockMinHeightAboveGround;
+		RE::NiPoint3 offsetGroundPosToPlayer = RE::NiPoint3(a_playerPos.x - offsetGroundPos.x, a_playerPos.y - offsetGroundPos.y, a_playerPos.z - offsetGroundPos.z);
+		RE::NiPoint3 offsetGroundPosToPlayerDirection = offsetGroundPosToPlayer;
+		offsetGroundPosToPlayerDirection.Unitize();
 
-	// get the angle from the offsetGroundPos to the player
-	RE::NiPoint3 offsetGroundPosAngle =  ToOrientationRotation(offsetGroundPosToPlayerDirection);
+		// get the angle from the offsetGroundPos to the player
+		RE::NiPoint3 offsetGroundPosAngle =  ToOrientationRotation(offsetGroundPosToPlayerDirection);
 
-	// use offsetGroundPosAngle to adjust the camera pitch if needed
-	if (offsetGroundPosAngle.x < cameraAngle.x) {
-		// don't go below the angle of the final camera <-> target direction
-		cameraAngle.x = offsetGroundPosAngle.x;
+		// use offsetGroundPosAngle to adjust the camera pitch if needed
+		if (offsetGroundPosAngle.x < cameraAngle.x) {
+			// don't go below the angle of the final camera <-> target direction
+			cameraAngle.x = offsetGroundPosAngle.x;
+		}
 	}
 
 	cameraAngle.x *= ((PI - fabs(cameraAngle.x)) / PI);

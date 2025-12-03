@@ -797,6 +797,11 @@ namespace Hooks
 
 	void DragonCameraStateHook::UpdateRotation(RE::DragonCameraState* a_this)
 	{
+		if (APIs::IDRC  && APIs::IDRC->GetDragon()) {
+			_UpdateRotation(a_this);
+			return;
+		}
+
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (directionalMovementHandler->GetFreeCameraEnabled() && !directionalMovementHandler->IFPV_IsFirstPerson() && !directionalMovementHandler->ImprovedCamera_IsFirstPerson()) {
 			float dragonCurrentDirection = a_this->dragonCurrentDirection;
