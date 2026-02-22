@@ -1618,6 +1618,10 @@ void DirectionalMovementHandler::UpdateTargetLock()
 		{
 			ToggleTargetLock(false);
 		}
+
+		if (GetForceDisableTargetLock()) {
+			ToggleTargetLock(false);
+		}
 	}
 }
 
@@ -2858,6 +2862,7 @@ void DirectionalMovementHandler::OnPreLoadGame()
 	_dialogueSpeaker = RE::ObjectRefHandle();
 	_playerIsNPC = false;
 	_papyrusDisableDirectionalMovement.clear();
+	_papyrusDisableTargetLock.clear();
 	_papyrusDisableHeadtracking.clear();
 }
 
@@ -3010,6 +3015,15 @@ void DirectionalMovementHandler::PapyrusDisableDirectionalMovement(std::string_v
 		_papyrusDisableDirectionalMovement.emplace(a_modName.data());
 	} else {
 		_papyrusDisableDirectionalMovement.erase(a_modName.data());
+	}
+}
+
+void DirectionalMovementHandler::PapyrusDisableTargetLock(std::string_view a_modName, bool a_bDisable)
+{
+	if (a_bDisable) {
+		_papyrusDisableTargetLock.emplace(a_modName.data());
+	} else {
+		_papyrusDisableTargetLock.erase(a_modName.data());
 	}
 }
 

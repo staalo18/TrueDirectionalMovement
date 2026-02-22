@@ -229,14 +229,17 @@ public:
 	std::atomic_bool _bReticleRemoved{ false };
 
 	bool GetForceDisableDirectionalMovement() const { return _bForceDisableDirectionalMovement || !_papyrusDisableDirectionalMovement.empty(); }
+	bool GetForceDisableTargetLock() const { return _bForceDisableTargetLock || !_papyrusDisableTargetLock.empty(); }
 	bool GetForceDisableHeadtracking() const { return _bForceDisableHeadtracking || !_papyrusDisableHeadtracking.empty(); }
 	bool GetYawControl() const { return _bYawControlledByPlugin; }
 	void SetForceDisableDirectionalMovement(bool a_disable) { _bForceDisableDirectionalMovement = a_disable; }
+	void SetForceDisableTargetLock(bool a_disable) { _bForceDisableTargetLock = a_disable; }
 	void SetForceDisableHeadtracking(bool a_disable) { _bForceDisableHeadtracking = a_disable; }
 	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
 	void SetPlayerYaw(float a_yaw) { _desiredAngle = NormalAbsoluteAngle(a_yaw); }
 
 	void PapyrusDisableDirectionalMovement(std::string_view a_modName, bool a_bDisable);
+	void PapyrusDisableTargetLock(std::string_view a_modName, bool a_bDisable);
 	void PapyrusDisableHeadtracking(std::string_view a_modName, bool a_bDisable);
 
 	bool IsACCInstalled() const { return _bACCInstalled; }
@@ -346,6 +349,8 @@ private:
 
 	bool _bForceDisableDirectionalMovement = false;
 	std::unordered_set<std::string> _papyrusDisableDirectionalMovement{};
+	bool _bForceDisableTargetLock = false;
+	std::unordered_set<std::string> _papyrusDisableTargetLock{};
     bool _bForceDisableHeadtracking = false;
 	std::unordered_set<std::string> _papyrusDisableHeadtracking{};
 	bool _bYawControlledByPlugin = false;
